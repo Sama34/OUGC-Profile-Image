@@ -62,7 +62,8 @@ else
 	$plugins->add_hook("postbit_announcement", "ougc_profileimage_postbit");
 	$plugins->add_hook("postbit", "ougc_profileimage_postbit");
 	$plugins->add_hook("member_profile_end", "ougc_profileimage_profile");
-	$plugins->add_hook("portal_announcement", "ougc_profileimage_portal");
+	$plugins->add_hook("portal_start", "ougc_profileimage_portal");
+	$plugins->add_hook("portal_announcement", "ougc_profileimage_portal_announcement");
 	$plugins->add_hook("memberlist_user", "ougc_profileimage_memberlist");
 	$plugins->add_hook("usercp_end", "ougc_profileimage_usercp");
 	$plugins->add_hook("misc_buddypopup_start", "ougc_profileimage_buddy");
@@ -735,8 +736,27 @@ function ougc_profileimage_profile()
 	ougc_profileimage_format($memprofile, $memprofile['ougc_profileimage'], 'profile');
 }
 
-// Format portal profile image
+// Hijack the portal query
 function ougc_profileimage_portal()
+{
+	control_object($GLOBALS['db'], '
+		function query($string, $hide_errors=0, $write_query=0)
+		{
+			static $done = false;
+			if(!$done && !$write_query && my_strpos($string, \'t.*, t.username AS threadusername, u.username, u.avatar, u.avatardimensions\') !== false)
+			{
+				$done = true;
+				$string = strtr($string, array(
+					\'avatardimensions\' => \'avatardimensions, u.ougc_profileimage, u.ougc_profileimage_dimensions\'
+				));
+			}
+			return parent::query($string, $hide_errors, $write_query);
+		}
+	');
+}
+
+// Format portal profile image
+function ougc_profileimage_portal_announcement()
 {
 	global $announcement;
 
